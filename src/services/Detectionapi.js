@@ -9,7 +9,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // ── Timeout (ms) ─────────────────────────────────────────────────
-const TIMEOUT_MS = 60_000;   // 60s — large X-ray images can take time
+const TIMEOUT_MS = 18000;   // 18s — large X-ray images can take time
 
 /**
  * Check if the backend is alive.
