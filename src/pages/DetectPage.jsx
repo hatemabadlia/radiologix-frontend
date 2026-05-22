@@ -24,10 +24,19 @@ import { useAuth } from "../hooks/useAuth";
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// DetectPage.jsx — replace checkHealth
 async function checkHealth() {
-  const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(4000) });
-  if (!res.ok) throw new Error("Server error");
-  return res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90000); // 90s for cold start
+  try {
+    const res = await fetch(`${API_BASE}/health`, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error("Server error");
+    return res.json();
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
 }
 
 async function callDetectAPI(imageFile, conf = 0.25, iou = 0.45) {
@@ -402,15 +411,19 @@ export default function DetectPage() {
 
   // ── Health check every 30s ────────────────────────────────────
   useEffect(() => {
-    const ping = async () => {
-      setServerStatus("checking");
-      try { await checkHealth(); setServerStatus("online"); }
-      catch  { setServerStatus("offline"); }
-    };
-    ping();
-    const id = setInterval(ping, 30000);
-    return () => clearInterval(id);
-  }, []);
+  const ping = async () => {
+    setServerStatus("checking");
+    try { 
+      await checkHealth(); 
+      setServerStatus("online"); 
+    } catch { 
+      setServerStatus("offline"); 
+    }
+  };
+  ping();
+  const id = setInterval(ping, 60000); // every 60s, not 30s
+  return () => clearInterval(id);
+}, []);
 
   // ── Load image ────────────────────────────────────────────────
   const loadImage = useCallback((file) => {
@@ -940,7 +953,7 @@ export default function DetectPage() {
               </button>
               {image && (
                 <button className="rx-btn" onClick={analyze}
-                  disabled={status==="analyzing" || serverStatus==="offline"}
+                  disabled={status === "analyzing"}
                   title={serverStatus==="offline"?"Backend offline":"Analyze X-ray"}
                   style={{
                     flex:1, padding:"11px",
